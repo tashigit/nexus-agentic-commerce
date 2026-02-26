@@ -1,0 +1,3 @@
+[workspace]
+members = ["nexus-sdk", "nexus-demo"]
+resolver = "2"

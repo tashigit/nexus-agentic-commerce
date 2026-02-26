@@ -1,0 +1,19 @@
+.claude/
+
+# Rust
+target/
+
+# Node / Dashboard
+dashboard/node_modules/
+dashboard/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+
+# Logs
+*.log
