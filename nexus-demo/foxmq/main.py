@@ -5,6 +5,7 @@ import time
 
 from nexus_sdk.engine import FoxMQEngine
 from nexus_sdk.types import (
+    Bid,
     Role,
     EventBid,
     EventDeal,
@@ -37,12 +38,7 @@ class AuctionState:
         self.surge_multiplier = 1.0
         self.recent_deals = []
 
-        # In FoxMQ architecture, each agent runs its own FoxMQEngine client 
-        # (or a central coordinating engine for the demo)
         self.coordinator = FoxMQEngine(agent_id="coordinator_001")
-        
-        # We collect all bids via the coordinator for matching
-        self.pending_bids = []
 
 async def run_auction_round(state: AuctionState, ws: WSServer):
     publishers = [i for i, a in enumerate(state.agents) if a.role == Role.publisher and a.active]
@@ -58,48 +54,43 @@ async def run_auction_round(state: AuctionState, ws: WSServer):
         slot = generate_slot(agent_pub)
 
         trust_threshold = agent_pub.mandate.trust_threshold
-        round_bids = []
+        pending_bids = []
 
         for agent in state.agents:
             if agent.role == Role.advertiser and agent.active:
                 if random.random() < 0.4:
                     amount = random.uniform(slot.min_price, max(agent.mandate.max_bid, slot.min_price + 1.0))
-                    if agent.balance >= amount: # `can_bid` check
+                    if agent.balance >= amount:
                         now_ms = int(time.time() * 1000)
-                        bid = EventBid(
+                        bid_event = EventBid(
                             from_=agent.id,
                             slot=slot,
                             amount=amount,
                             timestamp=now_ms
                         )
-                        await ws.broadcast_event(bid.model_dump_json(by_alias=True))
-                        
-                        # Use engine wrapper type
-                        from nexus_sdk.types import Bid
-                        engine_bid = Bid(
+                        await ws.broadcast_event(bid_event.model_dump_json(by_alias=True))
+
+                        pending_bids.append(Bid(
                             id=f"bid-{agent.id[:6]}-{now_ms}",
                             bidder=agent.id,
                             slot_id=slot.id,
                             amount=amount,
                             timestamp_ms=now_ms
-                        )
-                        # Publish to FoxMQ topic `swarm/bids/<slot_id>`
-                        state.coordinator.publish_bid(engine_bid)
-                        
-                        round_bids.append(engine_bid)
+                        ))
                         state.total_bids += 1
 
-        if not round_bids:
-            print("No bids from advertisers this round!")
+        if not pending_bids:
             continue
 
-        # In a real distributed system, we would await bids from FoxMQ callback buffer.
-        # For the demo simulation, we just resolve the bids we published directly to simulate consensus latency
-        # Assume consensus takes 5-15ms
-        await asyncio.sleep(random.uniform(0.005, 0.015))
-        
+        # Route bids through FoxMQ broker and collect them in broker-delivered order
+        ordered = await state.coordinator.run_batch_cycle(pending_bids, slot.id)
+        ordered_bids = [o.bid for o in ordered]
+
+        if not ordered_bids:
+            continue
+
         trust_map = {a.id: a.trust_score for a in state.agents}
-        result = resolve_auction(round_bids, slot, trust_map, trust_threshold)
+        result = resolve_auction(ordered_bids, slot, trust_map, trust_threshold)
 
         if result:
             deal, latency_ms = result
@@ -182,7 +173,8 @@ async def main():
 
     agent_list = spawn_agents(AGENT_COUNT)
     state = AuctionState(agent_list)
-    state.coordinator.connect()
+    loop = asyncio.get_running_loop()
+    state.coordinator.connect(loop=loop)
 
     # Wait for FoxMQ connection to establish
     await asyncio.sleep(1)
