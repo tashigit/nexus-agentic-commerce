@@ -52,9 +52,61 @@ Nexus is the **"Visa for the Agentic Web."** We aren't building a single store; 
 
 | Component | Description |
 |-----------|-------------|
-| **nexus-sdk** | Rust library that developers plug into their AI agents. Provides agent identity (Ed25519 keys, mandates, trust scores), a consensus engine abstraction (simulated ~26ms BFT window), auction resolution (bid ordering, trust filtering), and a clearing house for netting deals and batch settlement. |
-| **nexus-demo** | Simulation that spawns ~50 publisher/advertiser agents and runs ad auctions every 50ms. Uses the SDK end-to-end: agents bid on slots, consensus orders bids, deals are cleared and settled. Streams events over WebSocket for the dashboard. Supports stress commands: surge, attack, heal. |
-| **dashboard** | Svelte web app that connects to the demo via WebSocket. Shows live mesh topology (agent nodes and deal edges), metrics (TPS, latency, deals, settlements), transaction feed, agent panel, and simulation controls. |
+| **nexus-sdk** | Provides two variants:<br>- `vertex` (Rust): Uses `tashi-vertex` to provide BFT consensus window, Ed25519 identity, auction and clearing house.<br>- `foxmq` (Python): Uses `paho-mqtt` to connect to a decentralized FoxMQ broker, leveraging its mathematically fair ordering and global message distribution underneath standard MQTT abstractions. |
+| **nexus-demo** | Sandbox simulations using the SDK end-to-end to run ad auctions every 50ms, stream events over WebSocket, and handle stress commands. Exists in two variants:<br>- `vertex` (Rust): Direct Tashi Vertex integration.<br>- `foxmq` (Python): `asyncio` simulation interacting over FoxMQ. |
+| **dashboard** | Svelte web app that connects to the demo's WebSocket (on port 3001). Shows live mesh topology (agent nodes and deal edges), metrics (TPS, latency, deals, settlements), transaction feed, agent panel, and simulation controls. |
+
+---
+
+### **Running the Demos**
+
+You can run either the Rust-based Vertex integration or the Python-based FoxMQ abstraction. Both connect to the same web dashboard.
+
+#### **Option A: Tashi Vertex (Rust)**
+
+This version runs the consensus layer directly in-process via `tashi-vertex-rs`.
+
+1. **Start the Demo (Terminal 1)**
+```sh
+cargo run --bin nexus-demo
+```
+
+2. **Start the Dashboard (Terminal 2)**
+```sh
+cd dashboard
+npm install
+npm run dev
+```
+
+#### **Option B: FoxMQ (Python)**
+
+FoxMQ acts as a decentralized MQTT 5.0 broker that abstracts away Tashi Vertex. 
+
+1. **Start the FoxMQ Broker (Terminal 1)**
+Follow setup from [FoxMQ docs](https://docs.tashi.network/resources/foxmq) to start a local node:
+```sh
+# Download FoxMQ binary & generate keys
+./foxmq address-book from-range 127.0.0.1 19793 19793
+./foxmq user add --write-mode truncate
+./foxmq run --secret-key-file=foxmq.d/key_0.pem --allow-anonymous-login
+```
+
+
+2. **Run the Demo (Terminal 2)**
+```sh
+cd nexus-demo/foxmq
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
+
+3. **Start the Dashboard (Terminal 3)**
+```sh
+cd dashboard
+npm install
+npm run dev
+```
 
 ---
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use nexus_sdk::clearing::ClearingHouse;
-use nexus_sdk::engine::SimulatedEngine;
+use nexus_sdk::engine::VertexEngine;
 use nexus_sdk::handshake::{now_ms, resolve_auction};
 use nexus_sdk::identity::Agent;
 use nexus_sdk::types::*;
@@ -13,7 +13,7 @@ use crate::agents::generate_slot;
 pub struct AuctionState {
     pub agents: Vec<Agent>,
     pub clearing: ClearingHouse,
-    pub engine: SimulatedEngine,
+    pub engine: VertexEngine,
     pub total_deals: u64,
     pub total_bids: u64,
     pub latency_sum: f64,
@@ -22,11 +22,11 @@ pub struct AuctionState {
 }
 
 impl AuctionState {
-    pub fn new(agents: Vec<Agent>) -> Self {
+    pub async fn new(agents: Vec<Agent>) -> Self {
         AuctionState {
             agents,
             clearing: ClearingHouse::new(200.0),
-            engine: SimulatedEngine::new(),
+            engine: VertexEngine::new().await.unwrap(),
             total_deals: 0,
             total_bids: 0,
             latency_sum: 0.0,

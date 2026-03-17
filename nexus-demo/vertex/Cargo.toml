@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-nexus-sdk = { path = "../nexus-sdk" }
+nexus-sdk = { path = "../../nexus-sdk/vertex" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.24"
 futures-util = "0.3"

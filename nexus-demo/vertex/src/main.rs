@@ -36,7 +36,7 @@ async fn main() {
     let advertisers = agent_list.iter().filter(|a| a.role == nexus_sdk::types::Role::Advertiser).count();
     println!("  {} publishers, {} advertisers", publishers, advertisers);
 
-    let mut state = AuctionState::new(agent_list);
+    let mut state = AuctionState::new(agent_list).await;
 
     // Start WebSocket server
     let ws_addr: SocketAddr = "0.0.0.0:3001".parse().unwrap();
