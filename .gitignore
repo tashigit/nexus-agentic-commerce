@@ -17,3 +17,14 @@ dashboard/dist/
 
 # Logs
 *.log
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+venv/
+
+# FoxMQ broker
+foxmq
+foxmq.d/
+*.zip
